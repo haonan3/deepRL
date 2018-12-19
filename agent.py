@@ -62,7 +62,7 @@ class Agent():
                 state = state.cuda()
             a = self.policy_net(state).max(1)[1]
             a = a.view(1, 1)
-            return a
+        return a
 
     # pick samples randomly from replay memory (with batch_size)
     def train_policy_net(self, frame):
