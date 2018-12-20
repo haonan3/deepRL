@@ -13,15 +13,15 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Agent():
     def __init__(self, action_size):
-        self.load_model = False
+        self.load_model = True
 
         self.action_size = action_size
 
         # These are hyper parameters for the DQN
         self.discount_factor = 0.99
-        self.epsilon = 0.95
+        self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.explore_step = 1000000
+        self.explore_step = 100000
         self.epsilon_decay = (self.epsilon - self.epsilon_min) / self.explore_step
         self.train_start = 100000
         self.update_target = 1000
@@ -41,7 +41,7 @@ class Agent():
         self.update_target_net()
 
         if self.load_model:
-            self.policy_net = torch.load('save_model/breakout_dqn')
+            self.policy_net = torch.load('./save_model/ec1_breakout_dqn')
 
     # after some time interval update the target net to be same with policy net
     def update_target_net(self):
