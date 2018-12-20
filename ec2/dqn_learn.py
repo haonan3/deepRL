@@ -125,6 +125,7 @@ def dqn_learing(env,q_func,optimizer_spec,exploration,stopping_criterion=None,re
 
     rewards = []
     episodes = []
+    reward_list = []
     for t in count():
         ### Check stopping criterion
         if stopping_criterion is not None and stopping_criterion(env):
@@ -149,11 +150,9 @@ def dqn_learing(env,q_func,optimizer_spec,exploration,stopping_criterion=None,re
         obs, reward, done, _ = env.step(action)
         # clip rewards between -1 and 1
         reward = max(-1.0, min(reward, 1.0))
-        rewards.append(reward)
-        episodes.append(t)
-        print("episodes:{}, reward:{}".format(t,reward))
-        if t == 10000:
-            pylab.plot(episodes, rewards, 'b')
+        
+        if t == 20000000:
+            pylab.plot(episodes, reward_list, 'b')
             pylab.savefig("./save_graph/breakout_dqn.png")
 
         # Store other info in replay memory
@@ -236,7 +235,10 @@ def dqn_learing(env,q_func,optimizer_spec,exploration,stopping_criterion=None,re
             print("episodes %d" % len(episode_rewards))
             print("exploration %f" % exploration.value(t))
             sys.stdout.flush()
-
+            
+            reward_list.append(mean_episode_reward)
+            episodes.append(episode_rewards)
+            
             # Dump statistics to pickle
             with open('statistics.pkl', 'wb') as f:
                 pickle.dump(Statistic, f)
