@@ -8,6 +8,7 @@ from collections import namedtuple
 from itertools import count
 import random
 import gym.spaces
+import pylab
 
 import torch
 import torch.nn as nn
@@ -26,11 +27,7 @@ class Variable(autograd.Variable):
             data = data.cuda()
         super(Variable, self).__init__(data, *args, **kwargs)
 
-"""
-    OptimizerSpec containing following attributes
-        constructor: The optimizer constructor ex: RMSprop
-        kwargs: {Dict} arguments for constructing optimizer
-"""
+
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs"])
 
 Statistic = {
@@ -38,20 +35,8 @@ Statistic = {
     "best_mean_episode_rewards": []
 }
 
-def dqn_learing(
-    env,
-    q_func,
-    optimizer_spec,
-    exploration,
-    stopping_criterion=None,
-    replay_buffer_size=1000000,
-    batch_size=32,
-    gamma=0.99,
-    learning_starts=50000,
-    learning_freq=4,
-    frame_history_len=4,
-    target_update_freq=10000
-    ):
+def dqn_learing(env,q_func,optimizer_spec,exploration,stopping_criterion=None,replay_buffer_size=1000000,
+    batch_size=32,gamma=0.99,learning_starts=50000,learning_freq=4,frame_history_len=4,target_update_freq=10000):
 
     """Run Deep Q-learning algorithm.
 
@@ -102,7 +87,6 @@ def dqn_learing(
     ###############
 
     if len(env.observation_space.shape) == 1:
-        # This means we are running on low-dimensional observations (e.g. RAM)
         input_arg = env.observation_space.shape[0]
     else:
         img_h, img_w, img_c = env.observation_space.shape
@@ -110,12 +94,12 @@ def dqn_learing(
     num_actions = env.action_space.n
 
     # Construct an epilson greedy policy with given exploration schedule
+    # Use volatile = True if variable is only used in inference mode, i.e. don’t save the history
     def select_epilson_greedy_action(model, obs, t):
         sample = random.random()
         eps_threshold = exploration.value(t)
         if sample > eps_threshold:
             obs = torch.from_numpy(obs).type(dtype).unsqueeze(0) / 255.0
-            # Use volatile = True if variable is only used in inference mode, i.e. don’t save the history
             return model(Variable(obs, volatile=True)).data.max(1)[1].cpu()
         else:
             return torch.IntTensor([[random.randrange(num_actions)]])
@@ -139,6 +123,8 @@ def dqn_learing(
     last_obs = env.reset()
     LOG_EVERY_N_STEPS = 10000
 
+    rewards = []
+    episodes = []
     for t in count():
         ### Check stopping criterion
         if stopping_criterion is not None and stopping_criterion(env):
@@ -162,6 +148,13 @@ def dqn_learing(
         obs, reward, done, _ = env.step(action)
         # clip rewards between -1 and 1
         reward = max(-1.0, min(reward, 1.0))
+        rewards.append(reward)
+        episodes.append(t)
+        print("episodes:{}, reward:{}".format(t,reward))
+        if t == 10000:
+            pylab.plot(episodes, rewards, 'b')
+            pylab.savefig("./save_graph/breakout_dqn.png")
+
         # Store other info in replay memory
         replay_buffer.store_effect(last_idx, action, reward, done)
         # Resets the environment when reaching an episode boundary.
@@ -173,9 +166,7 @@ def dqn_learing(
         # Note that this is only done if the replay buffer contains enough samples
         # for us to learn something useful -- until then, the model will not be
         # initialized and random actions should be taken
-        if (t > learning_starts and
-                t % learning_freq == 0 and
-                replay_buffer.can_sample(batch_size)):
+        if (t > learning_starts and t % learning_freq == 0 and replay_buffer.can_sample(batch_size)):
             # Use the replay buffer to sample a batch of transitions
             # Note: done_mask[i] is 1 if the next state corresponds to the end of an episode,
             # in which case there is no Q-value at the next state; at the end of an
